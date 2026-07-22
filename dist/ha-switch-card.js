@@ -1,6 +1,6 @@
 // ha-switch-card.js
 // Карточка для коммутаторов GPS208 / GPS204
-// v1.3.9 — Completely removed footer
+// v1.0.0 — Completely removed footer
 
 import { SWITCH_TRANSLATIONS } from './i18n/index.js';
 
@@ -1249,7 +1249,7 @@ window.customCards.push({
 });
 
 console.info(
-  '%c 🔌 Switch Card %c v1.3.9 %c ready! (No footer)',
+  '%c 🔌 Switch Card %c v1.0.0 %c ready! (No footer)',
   'background:#0a1628;color:#00d4ff;font-weight:700;padding:2px 6px;border-radius:4px 0 0 4px;font-size:12px',
   'background:#00d4ff;color:#0a1628;font-weight:700;padding:2px 6px;border-radius:0 4px 4px 0;font-size:12px',
   'color:#4ade80;font-weight:400;font-size:11px;margin-left:4px'
