@@ -14,8 +14,7 @@
 ## 📸 Превью
 
 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-  <img src="images/switch_preview.png" style="width: 450px; height: 280px; object-fit: cover; border-radius: 8px;" />
-  <img src="images/switch_preview2.png" style="width: 450px; height: 280px; object-fit: cover; border-radius: 8px;" />
+  <img src="images/switch_preview.png" style="object-fit: cover; border-radius: 8px;" />
 </div>
 
 ---
