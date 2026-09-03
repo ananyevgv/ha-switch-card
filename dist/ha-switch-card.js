@@ -1,6 +1,6 @@
 // ha-switch-card.js
-// Карточка для коммутаторов GPS208 / GPS204
-// v1.0.0 — Completely removed footer
+// Карточка для коммутаторов GPS/GS серий
+// v2.0.0 — Добавлена модель GPS105 (1 Uplink + 4 PoE)
 
 import { SWITCH_TRANSLATIONS } from './i18n/index.js';
 
@@ -26,6 +26,10 @@ const HA_THEMES = {
     border: 'rgba(255,255,255,0.06)',
     card_shadow: '0 12px 48px rgba(0,0,0,0.5)',
     overlay: 'rgba(0,0,0,0.3)',
+    switch_body: '#1a2639',
+    switch_body2: '#0f1a2e',
+    switch_border: '#2a3a55',
+    led_off: '#2a3a4a',
   },
   light: {
     bg_card: '#f0f4f8',
@@ -36,8 +40,36 @@ const HA_THEMES = {
     border: 'rgba(0,0,0,0.08)',
     card_shadow: '0 12px 48px rgba(0,0,0,0.15)',
     overlay: 'rgba(255,255,255,0.3)',
+    switch_body: '#dce4ec',
+    switch_body2: '#c8d6e5',
+    switch_border: '#b0c0d0',
+    led_off: '#a0b0c0',
   }
 };
+
+// ─── Language detection ──────────────────────────────────────────────────
+function getSystemLanguage(hass, configLanguage) {
+  if (configLanguage && configLanguage !== 'auto') {
+    return configLanguage;
+  }
+  if (hass) {
+    if (hass.selectedLanguage) {
+      const lang = hass.selectedLanguage.split('-')[0];
+      if (SWITCH_TRANSLATIONS[lang]) return lang;
+      if (SWITCH_TRANSLATIONS[hass.selectedLanguage]) return hass.selectedLanguage;
+    }
+    if (hass.language) {
+      const lang = hass.language.split('-')[0];
+      if (SWITCH_TRANSLATIONS[lang]) return lang;
+      if (SWITCH_TRANSLATIONS[hass.language]) return hass.language;
+    }
+    if (hass.translationMetadata?.language) {
+      const lang = hass.translationMetadata.language.split('-')[0];
+      if (SWITCH_TRANSLATIONS[lang]) return lang;
+    }
+  }
+  return 'ru';
+}
 
 function getHATheme(themeSetting) {
   if (themeSetting === 'dark') return 'dark';
@@ -62,12 +94,14 @@ function switchPresetGradient(preset, c1, c2, alpha, haTheme) {
 
 // ─── DEFAULT CONFIG ──────────────────────────────────────────────────────
 const SWITCH_DEFAULT_CONFIG = {
-  language: 'ru',
+  language: 'auto',
   theme: 'auto',
-  title: 'GPS208',
-  subtitle: 'Управляемый коммутатор',
+  title: 'GPS105',
+  subtitle: 'PoE-коммутатор 4 порта',
   owner_name: 'Smart Home',
-  model: 'gps208',
+  model: 'gps105',
+  port_count: 4,
+  uplink_ports: [1],
   background_preset: 'default',
   bg_color1: '#0a1628',
   bg_color2: '#1a2d4a',
@@ -81,6 +115,8 @@ const SWITCH_DEFAULT_CONFIG = {
   color_port_active: '#3b82f6',
   color_accent: '#00d4ff',
   color_text: '#ffffff',
+  led_on: '#00ff88',
+  led_link: '#ffaa00',
 
   // Display options
   show_greet: true,
@@ -90,48 +126,84 @@ const SWITCH_DEFAULT_CONFIG = {
   show_port_labels: true,
   show_port_power: true,
   use_port_icons: true,
+  show_leds: true,
+  show_switch_body: true,
+  show_uplink_badge: true,
 
   // Entities - common
   voltage_entity: '',
   uptime_entity: '',
   temperature_entity: '',
+  
+  // LAN1 / Uplink 1
   lan1_link_entity: '',
-  lan1_power_entity: '',
-  lan1_poe_entity: '',
+  lan1_label: 'UPLINK',
+  
+  // LAN2 / Uplink 2 (опционально)
   lan2_link_entity: '',
-  lan2_power_entity: '',
-  lan2_poe_entity: '',
+  lan2_label: 'UPLINK 2',
 
-  // Entities - ports
-  port1_link_entity: '',
-  port1_power_entity: '',
-  port1_poe_entity: '',
-  port2_link_entity: '',
-  port2_power_entity: '',
-  port2_poe_entity: '',
-  port3_link_entity: '',
-  port3_power_entity: '',
-  port3_poe_entity: '',
-  port4_link_entity: '',
-  port4_power_entity: '',
-  port4_poe_entity: '',
-  port5_link_entity: '',
-  port5_power_entity: '',
-  port5_poe_entity: '',
-  port6_link_entity: '',
-  port6_power_entity: '',
-  port6_poe_entity: '',
-  port7_link_entity: '',
-  port7_power_entity: '',
-  port7_poe_entity: '',
-  port8_link_entity: '',
-  port8_power_entity: '',
-  port8_poe_entity: '',
+  // Entities - ports (до 24)
+  port1_link_entity: '', port1_power_entity: '', port1_poe_entity: '',
+  port2_link_entity: '', port2_power_entity: '', port2_poe_entity: '',
+  port3_link_entity: '', port3_power_entity: '', port3_poe_entity: '',
+  port4_link_entity: '', port4_power_entity: '', port4_poe_entity: '',
+  port5_link_entity: '', port5_power_entity: '', port5_poe_entity: '',
+  port6_link_entity: '', port6_power_entity: '', port6_poe_entity: '',
+  port7_link_entity: '', port7_power_entity: '', port7_poe_entity: '',
+  port8_link_entity: '', port8_power_entity: '', port8_poe_entity: '',
+  port9_link_entity: '', port9_power_entity: '', port9_poe_entity: '',
+  port10_link_entity: '', port10_power_entity: '', port10_poe_entity: '',
+  port11_link_entity: '', port11_power_entity: '', port11_poe_entity: '',
+  port12_link_entity: '', port12_power_entity: '', port12_poe_entity: '',
+  port13_link_entity: '', port13_power_entity: '', port13_poe_entity: '',
+  port14_link_entity: '', port14_power_entity: '', port14_poe_entity: '',
+  port15_link_entity: '', port15_power_entity: '', port15_poe_entity: '',
+  port16_link_entity: '', port16_power_entity: '', port16_poe_entity: '',
+  port17_link_entity: '', port17_power_entity: '', port17_poe_entity: '',
+  port18_link_entity: '', port18_power_entity: '', port18_poe_entity: '',
+  port19_link_entity: '', port19_power_entity: '', port19_poe_entity: '',
+  port20_link_entity: '', port20_power_entity: '', port20_poe_entity: '',
+  port21_link_entity: '', port21_power_entity: '', port21_poe_entity: '',
+  port22_link_entity: '', port22_power_entity: '', port22_poe_entity: '',
+  port23_link_entity: '', port23_power_entity: '', port23_poe_entity: '',
+  port24_link_entity: '', port24_power_entity: '', port24_poe_entity: '',
 };
 
+// ─── Model definitions ──────────────────────────────────────────────────
+const SWITCH_MODELS = {
+  // Модели с 1 Uplink (порт 1)
+  gps105: { label: 'GPS105', ports: 4, cols: 5, icon: '🔌', uplink: [1] },
+  
+  // Модели с 2 Uplink (порты 1, 2)
+  gps204: { label: 'GPS204', ports: 4, cols: 2, icon: '🔌', uplink: [1, 2] },
+  gps208: { label: 'GPS208', ports: 8, cols: 4, icon: '🔌', uplink: [1, 2] },
+  gs105: { label: 'GS105', ports: 5, cols: 5, icon: '🔗', uplink: [5] },
+  gs108: { label: 'GS108', ports: 8, cols: 4, icon: '🔗', uplink: [1, 2] },
+  
+  // Модели с 2 Uplink (16-24 порта)
+  'gs116-16p-100m': { label: 'GS116-16P-100M', ports: 16, cols: 4, icon: '🔗', uplink: [1, 2] },
+  'gs224-24p-100m': { label: 'GS224-24P-100M', ports: 24, cols: 6, icon: '🔗', uplink: [1, 2] },
+  'gs224-24p-gigabit': { label: 'GS224-24P-Gigabit', ports: 24, cols: 6, icon: '🔗', uplink: [1, 2] },
+  
+  // Модели с 3 Uplink (1 SFP + 2 Gigabit)
+  'gs216-2g-1s-16p-100m': { label: 'GS216-2G-1S-16P', ports: 16, cols: 4, icon: '🔗', uplink: [1, 2, 3] },
+  'gs224-2g-24p-100m': { label: 'GS224-2G-24P-100M', ports: 24, cols: 6, icon: '🔗', uplink: [1, 2] },
+  
+  custom: { label: 'Custom', ports: 8, cols: 4, icon: '🔌', uplink: [] },
+};
+
+function getModelConfig(model) {
+  return SWITCH_MODELS[model] || SWITCH_MODELS.gps208;
+}
+
 // ─── CSS ──────────────────────────────────────────────────────────────────
-function getSwitchCSS(haTheme) {
+function getSwitchCSS(haTheme, model, portCount) {
   const theme = HA_THEMES[haTheme] || HA_THEMES.dark;
+  const isDark = haTheme === 'dark';
+  const modelCfg = getModelConfig(model);
+  const cols = modelCfg.cols || Math.min(portCount, 6);
+  
   return `
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :host{display:block;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif}
@@ -141,83 +213,337 @@ function getSwitchCSS(haTheme) {
       background:radial-gradient(ellipse at 80% 20%,rgba(0,150,255,0.04),transparent 60%)}
     .inner{position:relative;z-index:1;padding:18px 18px 14px}
 
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:6px}
-    .header-left{display:flex;flex-direction:column;gap:2px}
-    .header-title{font-size:20px;font-weight:700;color:${theme.text_primary};letter-spacing:-0.3px}
-    .header-sub{font-size:11px;color:${theme.text_muted};font-weight:400}
-    .header-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-    .header-greet{font-size:12px;color:${theme.text_secondary}}
-    .header-status{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
-      background:${haTheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
-      border:1px solid ${theme.border};
-      font-size:11px;font-weight:600;color:${theme.text_secondary}}
-    .header-status .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
-    .dot.green{background:var(--cv-online,#4ade80);animation:pulse 2s ease-in-out infinite}
-    .dot.orange{background:var(--cv-partial,#f59e0b);animation:pulse 1.5s ease-in-out infinite}
-    .dot.red{background:var(--cv-offline,#ef4444);animation:pulse 0.8s ease-in-out infinite}
-    .dot.off{background:#6b7280}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+    .switch-body {
+      background: ${isDark ? 'linear-gradient(180deg, #1a2639 0%, #0f1a2e 100%)' : 'linear-gradient(180deg, #e8eef4 0%, #d0d8e0 100%)'};
+      border-radius: 16px;
+      border: 2px solid ${isDark ? '#2a3a55' : '#b0c0d0'};
+      padding: 14px 16px 12px;
+      box-shadow: ${isDark ? 
+        'inset 0 2px 4px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)' : 
+        'inset 0 2px 4px rgba(255,255,255,0.6), 0 4px 12px rgba(0,0,0,0.1)'};
+      position: relative;
+      transition: all 0.3s;
+    }
+    .switch-body::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 40%;
+      background: ${isDark ? 
+        'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%)' : 
+        'linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%)'};
+      pointer-events: none;
+      border-radius: 14px 14px 0 0;
+    }
 
-    .info-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-    .info-item{display:flex;align-items:center;gap:5px;padding:4px 10px;
-      background:${haTheme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'};
-      border-radius:10px;border:1px solid ${theme.border};
-      font-size:11px;color:${theme.text_muted};cursor:pointer;transition:all 0.2s}
-    .info-item:hover{background:${haTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'};
-      border-color:${haTheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}}
-    .info-item .val{font-weight:600;color:${theme.text_secondary}}
+    .switch-grill {
+      display: flex;
+      gap: 3px;
+      padding: 2px 0 6px;
+      justify-content: center;
+      opacity: 0.3;
+    }
+    .switch-grill span {
+      width: 4px;
+      height: 12px;
+      background: ${isDark ? '#2a3a55' : '#b0c0d0'};
+      border-radius: 2px;
+    }
 
-    .ports-grid{display:grid;gap:6px;margin-bottom:10px}
-    .ports-grid.gps208{grid-template-columns:repeat(4,1fr)}
-    .ports-grid.gps204{grid-template-columns:repeat(2,1fr)}
-    @media(max-width:450px){.ports-grid.gps208{grid-template-columns:repeat(2,1fr)}}
+    .switch-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 0 2px;
+      position: relative;
+      z-index: 1;
+    }
+    .switch-title-area {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .switch-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: ${isDark ? '#e8f0ff' : '#1a2a4a'};
+      letter-spacing: -0.3px;
+      text-shadow: ${isDark ? '0 1px 4px rgba(0,0,0,0.5)' : 'none'};
+    }
+    .switch-sub {
+      font-size: 10px;
+      color: ${isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'};
+      font-weight: 400;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .switch-leds {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .switch-led {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .switch-led .led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      transition: all 0.3s;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+    .switch-led .led.on {
+      background: var(--led-on, #00ff88);
+      box-shadow: 0 0 8px var(--led-on, #00ff88), 0 0 16px rgba(0,255,136,0.2);
+    }
+    .switch-led .led.off {
+      background: ${isDark ? '#2a3a4a' : '#b0b8c0'};
+    }
+    .switch-led .led.link {
+      background: var(--led-link, #ffaa00);
+      box-shadow: 0 0 8px var(--led-link, #ffaa00), 0 0 16px rgba(255,170,0,0.2);
+    }
+    .switch-led .led-label {
+      font-size: 7px;
+      font-weight: 600;
+      color: ${isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'};
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
 
-    .port-card{background:${haTheme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'};
-      border-radius:10px;padding:8px 6px 6px;
-      border:1px solid ${theme.border};transition:all 0.3s;text-align:center}
-    .port-card:hover{background:${haTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'};
-      border-color:${haTheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}}
-    .port-card.active{border-color:var(--cv-port-active,#3b82f6);
-      background:${haTheme === 'dark' ? 'rgba(59,130,246,0.06)' : 'rgba(59,130,246,0.08)'}}
-    .port-card .port-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;
-      color:${theme.text_muted};margin-bottom:2px}
-    .port-card .port-icon{font-size:18px;line-height:1.4;display:flex;align-items:center;justify-content:center;cursor:pointer}
-    .port-card .port-icon:hover{opacity:0.7}
-    .port-card .port-speed{font-size:11px;font-weight:700;color:${theme.text_secondary};margin-top:2px;cursor:pointer;padding:2px 4px;border-radius:4px}
-    .port-card .port-speed:hover{background:rgba(255,255,255,0.05);opacity:0.8}
-    .port-card .port-speed.empty{color:${theme.text_muted};font-weight:400}
-    .port-card .port-power{font-size:12px;font-weight:700;margin-top:2px;transition:color 0.3s;cursor:pointer;padding:2px 4px;border-radius:4px}
-    .port-card .port-power:hover{background:rgba(255,255,255,0.05);opacity:0.8}
-    .port-card .port-poe{font-size:10px;font-weight:700;margin-top:2px;padding:2px 8px;border-radius:4px;display:inline-block;cursor:pointer;transition:all 0.3s;user-select:none}
-    .port-poe:hover{transform:scale(1.05)}
-    .port-poe.on{background:rgba(74,222,128,0.25);color:#4ade80}
-    .port-poe.off{background:rgba(239,68,68,0.25);color:#ef4444}
-    .port-poe.na{background:rgba(107,114,128,0.2);color:#6b7280;cursor:default}
-    .port-poe.toggling{background:rgba(255,255,255,0.1);color:#f59e0b;animation:pulse 0.5s ease-in-out infinite}
+    .ports-grid {
+      display: grid;
+      grid-template-columns: repeat(${cols}, 1fr);
+      gap: 4px;
+      margin: 6px 0 4px;
+      position: relative;
+      z-index: 1;
+    }
+    @media(max-width:450px){
+      .ports-grid { grid-template-columns: repeat(${Math.min(cols, 3)}, 1fr); }
+    }
+    @media(max-width:350px){
+      .ports-grid { grid-template-columns: repeat(2, 1fr); }
+    }
 
-    .port-card .port-link-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin:0 auto 2px;cursor:pointer}
-    .port-link-dot:hover{opacity:0.7}
-    .port-link-dot.green{background:var(--cv-online,#4ade80);box-shadow:0 0 6px var(--cv-online,#4ade80)}
-    .port-link-dot.orange{background:var(--cv-partial,#f59e0b);box-shadow:0 0 6px var(--cv-partial,#f59e0b)}
-    .port-link-dot.red{background:var(--cv-offline,#ef4444)}
-    .port-link-dot.off{background:#4b5563}
+    .port-card {
+      background: ${isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)'};
+      border-radius: 6px;
+      padding: 6px 3px 4px;
+      border: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'};
+      text-align: center;
+      transition: all 0.3s;
+      position: relative;
+      cursor: pointer;
+      min-height: 56px;
+    }
+    .port-card:hover {
+      background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'};
+      border-color: ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'};
+    }
+    .port-card.active {
+      border-color: var(--cv-port-active, #3b82f6);
+      background: ${isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.06)'};
+    }
+    
+    .port-card.uplink {
+      border-color: ${isDark ? 'rgba(255,170,0,0.3)' : 'rgba(200,150,0,0.3)'};
+      background: ${isDark ? 'rgba(255,170,0,0.05)' : 'rgba(255,200,0,0.05)'};
+    }
+    .port-card.uplink .port-label {
+      color: ${isDark ? '#ffaa00' : '#b8860b'};
+    }
+    .port-card.uplink .port-icon {
+      filter: drop-shadow(0 0 4px rgba(255,170,0,0.3));
+    }
+    
+    .port-leds {
+      display: flex;
+      justify-content: center;
+      gap: 3px;
+      margin-bottom: 2px;
+    }
+    .port-led {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      transition: all 0.3s;
+    }
+    .port-led.link-on {
+      background: var(--led-link, #ffaa00);
+      box-shadow: 0 0 6px var(--led-link, #ffaa00);
+    }
+    .port-led.link-off {
+      background: ${isDark ? '#2a3a4a' : '#b0b8c0'};
+    }
+    .port-led.poe-on {
+      background: var(--led-on, #00ff88);
+      box-shadow: 0 0 6px var(--led-on, #00ff88);
+    }
+    .port-led.poe-off {
+      background: ${isDark ? '#2a3a4a' : '#b0b8c0'};
+    }
+    .port-led.speed-100 {
+      background: #ffaa00;
+      box-shadow: 0 0 6px #ffaa00;
+    }
+    .port-led.speed-1000 {
+      background: #00ff88;
+      box-shadow: 0 0 6px #00ff88;
+    }
+    
+    .port-card .port-label {
+      font-size: 7px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: ${isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'};
+      margin-bottom: 1px;
+    }
+    .port-card .port-icon {
+      font-size: 14px;
+      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .port-card .port-speed {
+      font-size: 8px;
+      font-weight: 700;
+      color: ${isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'};
+      margin-top: 1px;
+    }
+    .port-card .port-speed.empty {
+      color: ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'};
+    }
+    .port-card .port-power {
+      font-size: 9px;
+      font-weight: 700;
+      color: ${isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'};
+      margin-top: 1px;
+    }
+    .port-card .port-poe {
+      font-size: 7px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 1px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .port-card .port-poe.on {
+      background: rgba(74,222,128,0.2);
+      color: #4ade80;
+    }
+    .port-card .port-poe.off {
+      background: rgba(239,68,68,0.2);
+      color: #ef4444;
+    }
+    .port-card .port-poe.na {
+      background: rgba(107,114,128,0.15);
+      color: ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'};
+      cursor: default;
+    }
+    .port-card .port-poe.toggling {
+      background: rgba(255,255,255,0.1);
+      color: #f59e0b;
+      animation: pulse 0.5s ease-in-out infinite;
+    }
 
-    .poe-indicator{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;display:inline-block;margin-left:4px;cursor:pointer;transition:all 0.3s}
-    .poe-indicator:hover{transform:scale(1.05)}
-    .poe-indicator.on{background:rgba(74,222,128,0.25);color:#4ade80}
-    .poe-indicator.off{background:rgba(239,68,68,0.25);color:#ef4444}
-    .poe-indicator.na{background:rgba(107,114,128,0.2);color:#6b7280;cursor:default}
-    .poe-indicator.toggling{background:rgba(255,255,255,0.1);color:#f59e0b;animation:pulse 0.5s ease-in-out infinite}
+    .info-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 6px 0 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background: ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'};
+      border-radius: 8px;
+      border: 1px solid ${theme.border};
+      font-size: 10px;
+      color: ${theme.text_muted};
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .info-item:hover {
+      background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'};
+      border-color: ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'};
+    }
+    .info-item .val {
+      font-weight: 600;
+      color: ${theme.text_secondary};
+    }
+    .info-item .port-link-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      cursor: pointer;
+    }
+    .port-link-dot.green { background: var(--cv-online,#4ade80); box-shadow: 0 0 6px var(--cv-online,#4ade80); }
+    .port-link-dot.orange { background: var(--cv-partial,#f59e0b); box-shadow: 0 0 6px var(--cv-partial,#f59e0b); }
+    .port-link-dot.red { background: var(--cv-offline,#ef4444); }
+    .port-link-dot.off { background: #4b5563; }
 
-    .status-bar{display:flex;justify-content:space-between;align-items:center;
-      padding:8px 12px;background:${haTheme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'};
-      border-radius:10px;border:1px solid ${theme.border};flex-wrap:wrap;gap:4px}
-    .status-left{display:flex;align-items:center;gap:8px;font-size:11px;color:${theme.text_muted}}
-    .status-left .count{font-weight:600;color:${theme.text_secondary}}
-    .status-right{display:flex;gap:12px;font-size:10px;color:${theme.text_muted}}
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    /* ── Footer (полностью убираем) ── */
-    .footer{display:none}
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: ${isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'};
+      border-radius: 8px;
+      border: 1px solid ${theme.border};
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: ${theme.text_muted};
+    }
+    .status-left .count {
+      font-weight: 600;
+      color: ${theme.text_secondary};
+    }
+    .status-right {
+      display: flex;
+      gap: 10px;
+      font-size: 9px;
+      color: ${theme.text_muted};
+    }
+    .status-right .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 3px;
+    }
+    .dot.green { background: var(--cv-online,#4ade80); }
+    .dot.orange { background: var(--cv-partial,#f59e0b); }
+    .dot.red { background: var(--cv-offline,#ef4444); }
+    .dot.off { background: #6b7280; }
+
+    .footer { display: none; }
   `;
 }
 
@@ -231,6 +557,7 @@ class SwitchCard extends HTMLElement {
     this._initialized = false;
     this._interval = null;
     this._haTheme = 'dark';
+    this._languageDetected = false;
   }
 
   static getConfigElement() {
@@ -240,47 +567,23 @@ class SwitchCard extends HTMLElement {
   static getStubConfig() {
     return {
       ...SWITCH_DEFAULT_CONFIG,
-      model: 'gps208',
-      voltage_entity: 'sensor.gps208_voltage',
-      uptime_entity: 'sensor.gps208_uptime',
-      temperature_entity: 'sensor.gps208_temperature',
-      lan1_link_entity: 'sensor.gps208_lan1_link',
-      lan1_power_entity: 'sensor.gps208_lan1_power',
-      lan1_poe_entity: 'switch.gps208_lan1_poe',
-      lan2_link_entity: 'sensor.gps208_lan2_link',
-      lan2_power_entity: 'sensor.gps208_lan2_power',
-      lan2_poe_entity: 'switch.gps208_lan2_poe',
-      port1_link_entity: 'sensor.gps208_1_link',
-      port1_power_entity: 'sensor.gps208_1_power',
-      port1_poe_entity: 'switch.gps208_1_poe',
-      port2_link_entity: 'sensor.gps208_2_link',
-      port2_power_entity: 'sensor.gps208_2_power',
-      port2_poe_entity: 'switch.gps208_2_poe',
-      port3_link_entity: 'sensor.gps208_3_link',
-      port3_power_entity: 'sensor.gps208_3_power',
-      port3_poe_entity: 'switch.gps208_3_poe',
-      port4_link_entity: 'sensor.gps208_4_link',
-      port4_power_entity: 'sensor.gps208_4_power',
-      port4_poe_entity: 'switch.gps208_4_poe',
-      port5_link_entity: 'sensor.gps208_5_link',
-      port5_power_entity: 'sensor.gps208_5_power',
-      port5_poe_entity: 'switch.gps208_5_poe',
-      port6_link_entity: 'sensor.gps208_6_link',
-      port6_power_entity: 'sensor.gps208_6_power',
-      port6_poe_entity: 'switch.gps208_6_poe',
-      port7_link_entity: 'sensor.gps208_7_link',
-      port7_power_entity: 'sensor.gps208_7_power',
-      port7_poe_entity: 'switch.gps208_7_poe',
-      port8_link_entity: 'sensor.gps208_8_link',
-      port8_power_entity: 'sensor.gps208_8_power',
-      port8_poe_entity: 'switch.gps208_8_poe',
+      model: 'gps105',
+      port_count: 4,
+      voltage_entity: 'sensor.gps105_voltage',
+      uptime_entity: 'sensor.gps105_uptime',
+      temperature_entity: 'sensor.gps105_temperature',
+      lan1_link_entity: 'sensor.gps105_lan1_link',
     };
   }
 
   getCardSize() { return 6; }
 
   get t() {
-    return SWITCH_TRANSLATIONS[this._config.language || 'ru'] || SWITCH_TRANSLATIONS.ru;
+    let lang = this._config.language || 'ru';
+    if (lang === 'auto' && this._hass) {
+      lang = getSystemLanguage(this._hass, 'auto');
+    }
+    return SWITCH_TRANSLATIONS[lang] || SWITCH_TRANSLATIONS.ru;
   }
 
   _getHATheme() {
@@ -289,14 +592,35 @@ class SwitchCard extends HTMLElement {
 
   setConfig(config) {
     this._config = { ...SWITCH_DEFAULT_CONFIG, ...config };
+    if (!config.port_count) {
+      const modelCfg = getModelConfig(this._config.model);
+      this._config.port_count = modelCfg.ports || 8;
+    }
+    if (!config.uplink_ports) {
+      const modelCfg = getModelConfig(this._config.model);
+      this._config.uplink_ports = modelCfg.uplink || [];
+    }
+    
     this._haTheme = this._getHATheme();
     this._initialized = false;
+    
+    if (this._hass) {
+      this._config.language = getSystemLanguage(this._hass, this._config.language);
+      this._languageDetected = true;
+    }
+    
     this._render();
   }
 
   set hass(hass) {
     this._hass = hass;
     this._haTheme = this._getHATheme();
+    
+    if (!this._languageDetected) {
+      this._config.language = getSystemLanguage(hass, this._config.language);
+      this._languageDetected = true;
+    }
+    
     if (!this._initialized) {
       this._render();
     } else {
@@ -346,12 +670,13 @@ class SwitchCard extends HTMLElement {
 
   _getLinkSpeed(entityId) {
     const state = this._getState(entityId);
-    if (state === '1.0G') return '1.0G';
-    if (state === '100M') return '100M';
-    if (state === '10M') return '10M';
+    if (state === '1.0G' || state === '1000M' || state === '1000') return '1.0G';
+    if (state === '100M' || state === '100') return '100M';
+    if (state === '10M' || state === '10') return '10M';
     if (state === '2.5G') return '2.5G';
     if (state === '5G') return '5G';
     if (state === '10G') return '10G';
+    if (state === 'up' || state === 'on' || state === 'true') return '1.0G';
     return null;
   }
 
@@ -366,7 +691,7 @@ class SwitchCard extends HTMLElement {
     const val = this._getValue(entityId);
     if (val === null) return '—';
     if (val === 0) return '0';
-    return val.toFixed(0);
+    return val.toFixed(1);
   }
 
   _openMoreInfo(entityId) {
@@ -388,7 +713,7 @@ class SwitchCard extends HTMLElement {
     const service = isOn ? 'turn_off' : 'turn_on';
     
     if (element) {
-      const poeLabel = element.querySelector('.poe-indicator') || element.querySelector('.port-poe');
+      const poeLabel = element.querySelector('.port-poe');
       if (poeLabel) {
         poeLabel.textContent = '⏳';
         poeLabel.className = 'port-poe toggling';
@@ -401,7 +726,7 @@ class SwitchCard extends HTMLElement {
       })
       .catch(() => {
         if (element) {
-          const poeLabel = element.querySelector('.poe-indicator') || element.querySelector('.port-poe');
+          const poeLabel = element.querySelector('.port-poe');
           if (poeLabel) {
             poeLabel.textContent = '⚠️';
             poeLabel.className = 'port-poe toggling';
@@ -420,7 +745,8 @@ class SwitchCard extends HTMLElement {
     const cfg = this._config;
     const t = this.t;
     const model = cfg.model || 'gps208';
-    const portCount = model === 'gps208' ? 8 : 4;
+    const portCount = cfg.port_count || getModelConfig(model).ports || 8;
+    const uplinkPorts = cfg.uplink_ports || [];
     const haTheme = this._haTheme;
     const themeColors = HA_THEMES[haTheme] || HA_THEMES.dark;
 
@@ -437,20 +763,17 @@ class SwitchCard extends HTMLElement {
     const uptime = this._getState(cfg.uptime_entity);
     const temperature = this._getValue(cfg.temperature_entity);
 
+    // Uplink 1
     const lan1Speed = this._getLinkSpeed(cfg.lan1_link_entity);
-    const lan1Power = this._getPowerDisplay(cfg.lan1_power_entity);
-    const lan1Poe = this._isOn(cfg.lan1_poe_entity);
-    const lan1HasPoe = !!cfg.lan1_poe_entity;
-    const lan1PowerEntity = cfg.lan1_power_entity;
+    const lan1Label = cfg.lan1_label || 'UPLINK';
     
+    // Uplink 2 (опционально)
     const lan2Speed = this._getLinkSpeed(cfg.lan2_link_entity);
-    const lan2Power = this._getPowerDisplay(cfg.lan2_power_entity);
-    const lan2Poe = this._isOn(cfg.lan2_poe_entity);
-    const lan2HasPoe = !!cfg.lan2_poe_entity;
-    const lan2PowerEntity = cfg.lan2_power_entity;
+    const lan2Label = cfg.lan2_label || 'UPLINK 2';
 
     const ports = [];
-    for (let i = 1; i <= portCount; i++) {
+    const maxPorts = Math.min(portCount, 24);
+    for (let i = 1; i <= maxPorts; i++) {
       const linkEntity = cfg[`port${i}_link_entity`];
       const powerEntity = cfg[`port${i}_power_entity`];
       const poeEntity = cfg[`port${i}_poe_entity`];
@@ -458,7 +781,8 @@ class SwitchCard extends HTMLElement {
       const power = this._getPowerDisplay(powerEntity);
       const poeOn = this._isOn(poeEntity);
       const hasPoe = !!poeEntity;
-      ports.push({ id: i, speed, power, linkEntity, powerEntity, poeEntity, poeOn, hasPoe });
+      const isUplink = uplinkPorts.includes(i);
+      ports.push({ id: i, speed, power, linkEntity, powerEntity, poeEntity, poeOn, hasPoe, isUplink });
     }
 
     const activePorts = ports.filter(p => p.speed !== null).length;
@@ -476,35 +800,51 @@ class SwitchCard extends HTMLElement {
       --cv-port-active: ${portColor};
       --cv-accent: ${accent};
       --cv-text: ${textColor};
+      --led-on: ${cfg.led_on || '#00ff88'};
+      --led-link: ${cfg.led_link || '#ffaa00'};
       background: ${bgGrad};
       backdrop-filter: blur(${cfg.bg_blur || 12}px);
       -webkit-backdrop-filter: blur(${cfg.bg_blur || 12}px);
     `;
 
-    const buildLanItem = (label, speed, power, poeOn, hasPoe, linkEntity, poeEntity, powerEntity) => {
-      const color = this._getLinkColor(speed);
-      const speedLabel = speed ? (t.speeds[speed] || speed) : '—';
-      const poeClass = hasPoe ? (poeOn ? 'on' : 'off') : 'na';
-      const poeLabel = hasPoe ? (poeOn ? '⚡ON' : '⚡OFF') : '';
-      
-      return `
-        <span class="info-item" data-entity="${linkEntity}" data-poe="${poeEntity}" data-power="${powerEntity}" data-label="${label}">
-          <span class="port-link-dot ${color}" style="width:6px;height:6px;cursor:pointer" data-entity="${linkEntity}"></span>
-          ${label} ${speedLabel}
-          ${power && power !== '—' ? `<span class="val" style="cursor:pointer" data-entity="${powerEntity}">· ${power}W</span>` : ''}
-          ${poeLabel ? `<span class="poe-indicator ${poeClass}" data-poe="${poeEntity}">${poeLabel}</span>` : ''}
+    // Сборка Uplink информации
+    let uplinkHtml = '';
+    const uplinkItems = [];
+    
+    if (cfg.lan1_link_entity) {
+      const color = this._getLinkColor(lan1Speed);
+      const speedLabel = lan1Speed ? (t.speeds[lan1Speed] || lan1Speed) : '—';
+      uplinkItems.push(`
+        <span class="info-item" data-entity="${cfg.lan1_link_entity}">
+          <span class="port-link-dot ${color}" style="width:6px;height:6px;cursor:pointer" data-entity="${cfg.lan1_link_entity}"></span>
+          ${lan1Label} ${speedLabel}
         </span>
-      `;
-    };
+      `);
+    }
+    
+    if (cfg.lan2_link_entity) {
+      const color = this._getLinkColor(lan2Speed);
+      const speedLabel = lan2Speed ? (t.speeds[lan2Speed] || lan2Speed) : '—';
+      uplinkItems.push(`
+        <span class="info-item" data-entity="${cfg.lan2_link_entity}">
+          <span class="port-link-dot ${color}" style="width:6px;height:6px;cursor:pointer" data-entity="${cfg.lan2_link_entity}"></span>
+          ${lan2Label} ${speedLabel}
+        </span>
+      `);
+    }
+    
+    if (uplinkItems.length) {
+      uplinkHtml = `<div class="info-bar">${uplinkItems.join('')}</div>`;
+    }
 
     let portsHtml = '';
     ports.forEach((p) => {
       const speedLabel = p.speed ? (t.speeds[p.speed] || p.speed) : '—';
-      const linkColor = this._getLinkColor(p.speed);
       const isActive = p.speed !== null;
       const icon = isActive ? '🔗' : '⛔';
-      const powerDisplay = cfg.show_port_power !== false ? p.power : '';
       const speedClass = isActive ? '' : 'empty';
+      const uplinkClass = p.isUplink ? 'uplink' : '';
+      const uplinkLabel = p.isUplink ? ' ▲' : '';
       
       let poeHtml = '';
       if (p.hasPoe) {
@@ -513,13 +853,21 @@ class SwitchCard extends HTMLElement {
         poeHtml = `<div class="port-poe ${poeClass}" data-poe="${p.poeEntity}">${poeLabel}</div>`;
       }
 
+      const ledClasses = isActive ? 'link-on' : 'link-off';
+      const poeLedClass = p.hasPoe ? (p.poeOn ? 'poe-on' : 'poe-off') : '';
+      const speedLedClass = isActive ? (p.speed === '1.0G' || p.speed === '2.5G' || p.speed === '5G' || p.speed === '10G' ? 'speed-1000' : 'speed-100') : '';
+
       portsHtml += `
-        <div class="port-card${isActive ? ' active' : ''}" data-entity="${p.linkEntity}" data-poe="${p.poeEntity}" data-power="${p.powerEntity}" data-port="${p.id}">
-          <div class="port-label">${t.labels.port} ${p.id}</div>
+        <div class="port-card ${isActive ? 'active' : ''} ${uplinkClass}" data-entity="${p.linkEntity}" data-poe="${p.poeEntity}" data-power="${p.powerEntity}" data-port="${p.id}">
+          <div class="port-leds">
+            <span class="port-led ${ledClasses}"></span>
+            ${p.hasPoe ? `<span class="port-led ${poeLedClass}"></span>` : ''}
+            ${isActive ? `<span class="port-led ${speedLedClass}"></span>` : ''}
+          </div>
+          <div class="port-label">${t.labels.port} ${p.id}${uplinkLabel}</div>
           <div class="port-icon" data-entity="${p.linkEntity}">${cfg.use_port_icons !== false ? icon : '⚡'}</div>
-          <span class="port-link-dot ${linkColor}" data-entity="${p.linkEntity}"></span>
           <div class="port-speed ${speedClass}" data-entity="${p.linkEntity}">${cfg.show_port_labels !== false ? speedLabel : ''}</div>
-          ${cfg.show_port_power !== false ? `<div class="port-power" style="color:${isActive ? portColor : themeColors.text_muted}" data-entity="${p.powerEntity}">${powerDisplay}W</div>` : ''}
+          ${cfg.show_port_power !== false && p.hasPoe ? `<div class="port-power" style="color:${isActive ? portColor : themeColors.text_muted}" data-entity="${p.powerEntity}">${p.power}W</div>` : ''}
           ${poeHtml}
         </div>
       `;
@@ -542,52 +890,43 @@ class SwitchCard extends HTMLElement {
       </div>
     ` : '';
 
-    let lanHtml = '';
-    const lanItems = [];
-    if (cfg.lan1_link_entity) {
-      lanItems.push(buildLanItem('LAN1', lan1Speed, lan1Power, lan1Poe, lan1HasPoe, cfg.lan1_link_entity, cfg.lan1_poe_entity, cfg.lan1_power_entity));
-    }
-    if (cfg.lan2_link_entity) {
-      lanItems.push(buildLanItem('LAN2', lan2Speed, lan2Power, lan2Poe, lan2HasPoe, cfg.lan2_link_entity, cfg.lan2_poe_entity, cfg.lan2_power_entity));
-    }
-    if (lanItems.length) {
-      lanHtml = `<div class="info-bar">${lanItems.join('')}</div>`;
-    }
+    const grillDots = Array.from({ length: 20 }, () => '<span></span>').join('');
 
     const html = `
-      <style>${getSwitchCSS(haTheme)}</style>
+      <style>${getSwitchCSS(haTheme, model, portCount)}</style>
       <div class="card" style="${customCss}">
         <div class="inner">
-          <div class="header">
-            <div class="header-left">
-              <div class="header-title">${cfg.title || t.cardTitle}</div>
-              <div class="header-sub">${cfg.subtitle || t.cardSub}</div>
-            </div>
-            <div class="header-right">
-              ${cfg.show_greet !== false ? `<div class="header-greet">${t.greet()} ${cfg.owner_name || 'Smart Home'}</div>` : ''}
-              ${cfg.show_status !== false ? `
-                <div class="header-status">
-                  <span class="dot ${statusDot}"></span>
-                  ${statusText}
+          <div class="switch-body">
+            <div class="switch-grill">${grillDots}</div>
+            
+            <div class="switch-header">
+              <div class="switch-title-area">
+                <div class="switch-title">${cfg.title || t.cardTitle}</div>
+                <div class="switch-sub">${cfg.subtitle || t.cardSub}</div>
+              </div>
+              <div class="switch-leds">
+                <div class="switch-led">
+                  <span class="led ${lan1Speed ? 'on' : 'off'}"></span>
+                  <span class="led-label">PWR</span>
                 </div>
-              ` : ''}
+                <div class="switch-led">
+                  <span class="led ${lan2Speed ? 'link' : 'off'}"></span>
+                  <span class="led-label">LINK</span>
+                </div>
+                <div class="switch-led">
+                  <span class="led ${voltage !== null ? 'on' : 'off'}"></span>
+                  <span class="led-label">POE</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          ${infoHtml}
-          ${lanHtml}
+            ${infoHtml}
+            ${uplinkHtml}
 
-          <div class="ports-grid ${model}">
-            ${portsHtml}
-          </div>
-
-          <div class="status-bar">
-            <div class="status-left">
-              <span class="count">${activePorts}/${totalPorts}</span> ${t.labels.port} ${statusText.toLowerCase()}
+            <div class="ports-grid">
+              ${portsHtml}
             </div>
-            <div class="status-right">
-              <span>${t.labels.speed}: ${ports.filter(p => p.speed).length ? ports.filter(p => p.speed).map(p => p.speed).join(', ') : '—'}</span>
-            </div>
+
           </div>
         </div>
       </div>
@@ -612,9 +951,14 @@ class SwitchCard extends HTMLElement {
       container.id = 'switch-root';
       this.shadowRoot.appendChild(container);
     }
+    
+    const lang = this._config.language || 'ru';
+    const langName = SWITCH_TRANSLATIONS[lang]?.lang || 'Russian';
+    
     container.innerHTML = `
       <div style="padding:20px;text-align:center;color:var(--secondary-text-color);font-family:sans-serif;font-size:13px;">
-        🔌 Switch Card — настройте сущности в редакторе
+        🔌 Switch Card — настройте сущности в редакторе<br>
+        <span style="font-size:11px;color:var(--secondary-text-color);opacity:0.6;">Язык: ${langName}</span>
       </div>
     `;
     this._initialized = false;
@@ -658,7 +1002,7 @@ class SwitchCard extends HTMLElement {
           e.stopPropagation();
           const poeEntity = el.dataset.poe;
           if (poeEntity) {
-            const parent = el.closest('.info-item') || el.closest('.port-card');
+            const parent = el.closest('.port-card');
             this._togglePoE(poeEntity, parent || el);
           }
         });
@@ -693,6 +1037,14 @@ class SwitchCardEditor extends HTMLElement {
 
   setConfig(config) {
     this._config = { ...SWITCH_DEFAULT_CONFIG, ...config };
+    if (!config.port_count) {
+      const modelCfg = getModelConfig(this._config.model);
+      this._config.port_count = modelCfg.ports || 8;
+    }
+    if (!config.uplink_ports) {
+      const modelCfg = getModelConfig(this._config.model);
+      this._config.uplink_ports = modelCfg.uplink || [];
+    }
     this._render();
   }
 
@@ -702,7 +1054,11 @@ class SwitchCardEditor extends HTMLElement {
   }
 
   get t() {
-    return SWITCH_TRANSLATIONS[this._config.language || 'ru'] || SWITCH_TRANSLATIONS.ru;
+    let lang = this._config.language || 'ru';
+    if (lang === 'auto' && this._hass) {
+      lang = getSystemLanguage(this._hass, 'auto');
+    }
+    return SWITCH_TRANSLATIONS[lang] || SWITCH_TRANSLATIONS.ru;
   }
 
   _fire() {
@@ -801,27 +1157,46 @@ class SwitchCardEditor extends HTMLElement {
 
   _renderPortFields(start, count, prefix) {
     let html = '';
+    const perRow = 4;
     for (let i = start; i < start + count; i++) {
+      if ((i - start) % perRow === 0) {
+        if (i > start) html += '</div>';
+        html += `<div style="display:grid;grid-template-columns:repeat(${Math.min(perRow, count - (i - start))},1fr);gap:6px;margin-bottom:6px;">`;
+      }
       html += `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--secondary-background-color);border-radius:8px;padding:8px 10px;margin-bottom:6px;border:1px solid var(--divider-color);">
-          <div style="grid-column:1/3;font-size:11px;font-weight:700;color:var(--primary-color);">${prefix} ${i}</div>
+        <div style="background:var(--secondary-background-color);border-radius:6px;padding:6px 8px;border:1px solid var(--divider-color);">
+          <div style="font-size:10px;font-weight:700;color:var(--primary-color);margin-bottom:3px;">${prefix} ${i}</div>
           ${this._entityField(`port${i}_link_entity`, '🔗 Link', 'sensor')}
           ${this._entityField(`port${i}_power_entity`, '⚡ Power', 'sensor')}
           ${this._entityField(`port${i}_poe_entity`, '⚡ PoE', 'switch')}
         </div>
       `;
     }
+    if (count > 0) html += '</div>';
     return html;
   }
 
   _render() {
     const cfg = this._config;
-    const t = this.t;
-    const lang = cfg.language || 'ru';
+    const lang = cfg.language || 'auto';
     const bgP = cfg.background_preset || 'default';
-    const model = cfg.model || 'gps208';
-    const portCount = model === 'gps208' ? 8 : 4;
+    const model = cfg.model || 'gps105';
+    const portCount = cfg.port_count || getModelConfig(model).ports || 4;
     const theme = cfg.theme || 'auto';
+
+    // Определяем текущий язык системы для отображения
+    let systemLang = 'ru';
+    if (this._hass) {
+      systemLang = getSystemLanguage(this._hass, 'auto');
+    }
+    const systemLangName = SWITCH_TRANSLATIONS[systemLang]?.lang || 'Russian';
+
+    const modelOptions = Object.entries(SWITCH_MODELS).map(([key, val]) => `
+      <div class="model-btn ${model === key ? 'on' : ''}" data-model="${key}">
+        ${val.label}
+        <span class="sub">${val.ports} портов</span>
+      </div>
+    `).join('');
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -842,9 +1217,9 @@ class SwitchCardEditor extends HTMLElement {
         .acc-head ha-icon { color:var(--secondary-text-color);--mdi-icon-size:18px; }
         .acc-arrow { margin-left:auto;font-size:14px;color:var(--secondary-text-color); }
         .acc-body { padding:12px 14px;border-top:1px solid var(--divider-color);background:var(--card-background-color,#fff); }
-        .row { display:flex;flex-direction:column;margin-bottom:12px; }
+        .row { display:flex;flex-direction:column;margin-bottom:10px; }
         .row:last-child { margin-bottom:0; }
-        .row label { font-size:12px;color:var(--secondary-text-color);margin-bottom:4px;font-weight:600; }
+        .row label { font-size:11px;color:var(--secondary-text-color);margin-bottom:3px;font-weight:600; }
         ha-entity-picker { display:block;width:100%; }
         .lang-grid { display:flex;flex-wrap:wrap;gap:6px; }
         .lang-btn {
@@ -903,16 +1278,20 @@ class SwitchCardEditor extends HTMLElement {
           cursor:pointer;font-family:inherit;margin-top:10px;
         }
         .reset-btn:hover { background:var(--secondary-background-color); }
-        .model-selector { display:flex;gap:8px;margin-bottom:12px; }
+        .model-selector { display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;margin-bottom:12px; }
         .model-btn {
-          flex:1;padding:10px;border-radius:10px;border:2px solid var(--divider-color);
-          cursor:pointer;text-align:center;font-size:13px;font-weight:600;
+          padding:8px 6px;border-radius:8px;border:2px solid var(--divider-color);
+          cursor:pointer;text-align:center;font-size:12px;font-weight:600;
           background:var(--secondary-background-color);color:var(--primary-text-color);
           transition:all .2s;font-family:inherit;
         }
         .model-btn.on { border-color:var(--primary-color);background:rgba(3,169,244,.08);color:var(--primary-color); }
-        .model-btn .sub { font-size:10px;font-weight:400;color:var(--secondary-text-color);display:block;margin-top:2px; }
+        .model-btn .sub { font-size:9px;font-weight:400;color:var(--secondary-text-color);display:block;margin-top:1px; }
         .model-btn.on .sub { color:var(--primary-color);opacity:0.7; }
+        .port-count-row { display:flex;align-items:center;gap:12px;margin:8px 0 12px; }
+        .port-count-row label { font-size:12px;font-weight:600;color:var(--secondary-text-color);min-width:80px; }
+        .port-count-row input[type=range] { flex:1;accent-color:var(--primary-color);height:4px;cursor:pointer;max-width:200px; }
+        .port-count-row .pcv { font-size:13px;font-weight:700;color:var(--primary-color);min-width:30px; }
         .theme-grid { display:flex;gap:8px;margin-bottom:12px; }
         .theme-btn {
           flex:1;padding:10px;border-radius:10px;border:2px solid var(--divider-color);
@@ -927,16 +1306,20 @@ class SwitchCardEditor extends HTMLElement {
 
       <div class="editor">
         <div class="credit">🔌 <strong>Switch Card</strong>
-          <span style="color:var(--secondary-text-color);font-weight:400;">v1.3.9 — Completely removed footer</span>
+          <span style="color:var(--secondary-text-color);font-weight:400;">v2.4.0 — GPS105: 1 Uplink + 4 PoE</span>
         </div>
 
         <div class="acc-wrap">
           <div class="acc-head" id="head-lang">
-            <ha-icon icon="mdi:translate"></ha-icon> ${t.edLang}
+            <ha-icon icon="mdi:translate"></ha-icon> ${this.t.edLang}
             <span class="acc-arrow" id="arrow-lang">${this._open.lang ? '▾' : '▸'}</span>
           </div>
           <div class="acc-body" id="body-lang" style="display:${this._open.lang ? 'block' : 'none'}">
             <div class="lang-grid">
+              <div class="lang-btn ${lang === 'auto' ? 'on' : ''}" data-lang="auto">
+                🌐 Системный
+                <span style="font-size:9px;color:var(--secondary-text-color);display:block;">${systemLangName}</span>
+              </div>
               ${Object.entries(SWITCH_TRANSLATIONS).map(([code, tr]) => `
                 <div class="lang-btn ${lang === code ? 'on' : ''}" data-lang="${code}">
                   <img src="https://flagcdn.com/20x15/${tr.flag}.png" width="20" height="15" alt="${tr.lang}" style="border-radius:2px;flex-shrink:0;display:block;">
@@ -949,89 +1332,87 @@ class SwitchCardEditor extends HTMLElement {
 
         <div class="acc-wrap">
           <div class="acc-head" id="head-title">
-            <ha-icon icon="mdi:card-text"></ha-icon> ${t.edTitle}
+            <ha-icon icon="mdi:card-text"></ha-icon> ${this.t.edTitle}
             <span class="acc-arrow" id="arrow-title">${this._open.title ? '▾' : '▸'}</span>
           </div>
           <div class="acc-body" id="body-title" style="display:${this._open.title ? 'block' : 'none'}">
             <div class="row">
-              <label>${t.edTitleLabel}</label>
-              <input class="txt-inp" type="text" id="inp-title" value="${cfg.title || ''}" placeholder="${t.cardTitle}"/>
+              <label>${this.t.edTitleLabel}</label>
+              <input class="txt-inp" type="text" id="inp-title" value="${cfg.title || ''}" placeholder="${this.t.cardTitle}"/>
             </div>
             <div class="row">
-              <label>${t.edSubtitleLabel}</label>
-              <input class="txt-inp" type="text" id="inp-subtitle" value="${cfg.subtitle || ''}" placeholder="${t.cardSub}"/>
+              <label>${this.t.edSubtitleLabel}</label>
+              <input class="txt-inp" type="text" id="inp-subtitle" value="${cfg.subtitle || ''}" placeholder="${this.t.cardSub}"/>
             </div>
             <div class="row">
-              <label>${t.edOwnerName}</label>
+              <label>${this.t.edOwnerName}</label>
               <input class="txt-inp" type="text" id="inp-owner" value="${cfg.owner_name || ''}" placeholder="Smart Home"/>
             </div>
             <div style="height:1px;background:var(--divider-color);margin:8px 0;"></div>
             
-            <label style="font-size:12px;font-weight:600;color:var(--secondary-text-color);margin-bottom:6px;display:block;">${t.edTheme}</label>
+            <label style="font-size:12px;font-weight:600;color:var(--secondary-text-color);margin-bottom:6px;display:block;">${this.t.edTheme}</label>
             <div class="theme-grid">
               <div class="theme-btn ${theme === 'auto' ? 'on' : ''}" data-theme="auto">
-                ${t.edThemeAuto}
-                <span class="sub">${t.edThemeDesc}</span>
+                ${this.t.edThemeAuto}
+                <span class="sub">${this.t.edThemeDesc}</span>
               </div>
               <div class="theme-btn ${theme === 'dark' ? 'on' : ''}" data-theme="dark">
-                ${t.edThemeDark}
-                <span class="sub">${t.edThemeDesc}</span>
+                ${this.t.edThemeDark}
+                <span class="sub">${this.t.edThemeDesc}</span>
               </div>
               <div class="theme-btn ${theme === 'light' ? 'on' : ''}" data-theme="light">
-                ${t.edThemeLight}
-                <span class="sub">${t.edThemeDesc}</span>
+                ${this.t.edThemeLight}
+                <span class="sub">${this.t.edThemeDesc}</span>
               </div>
             </div>
             
-            <label style="font-size:12px;font-weight:600;color:var(--secondary-text-color);margin-bottom:8px;display:block;">${t.edModel}</label>
+            <label style="font-size:12px;font-weight:600;color:var(--secondary-text-color);margin-bottom:6px;display:block;">${this.t.edModel}</label>
             <div class="model-selector">
-              <div class="model-btn ${model === 'gps208' ? 'on' : ''}" data-model="gps208">
-                ${t.edModelGPS208}
-                <span class="sub">8 портов</span>
-              </div>
-              <div class="model-btn ${model === 'gps204' ? 'on' : ''}" data-model="gps204">
-                ${t.edModelGPS204}
-                <span class="sub">4 порта</span>
-              </div>
+              ${modelOptions}
+            </div>
+            <div class="port-count-row">
+              <label>Кол-во портов:</label>
+              <input type="range" id="inp-port-count" min="4" max="24" step="1" value="${portCount}"/>
+              <span class="pcv" id="port-count-lbl">${portCount}</span>
+            </div>
+            <div class="row">
+              <label>Uplink порты (через запятую, например: 1)</label>
+              <input class="txt-inp" type="text" id="inp-uplink" value="${(cfg.uplink_ports || []).join(',')}" placeholder="1"/>
             </div>
           </div>
         </div>
 
         <div class="acc-wrap">
           <div class="acc-head" id="head-entities">
-            <ha-icon icon="mdi:database"></ha-icon> ${t.edEntities}
+            <ha-icon icon="mdi:database"></ha-icon> ${this.t.edEntities}
             <span class="acc-arrow" id="arrow-entities">${this._open.entities ? '▾' : '▸'}</span>
           </div>
           <div class="acc-body" id="body-entities" style="display:${this._open.entities ? 'block' : 'none'}">
-            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:8px 0 6px;text-transform:uppercase;">⚡ ${t.edVoltage}</div>
-            ${this._entityField('voltage_entity', t.edVoltage, 'sensor')}
+            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:8px 0 6px;text-transform:uppercase;">⚡ ${this.t.edVoltage}</div>
+            ${this._entityField('voltage_entity', this.t.edVoltage, 'sensor')}
 
-            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:12px 0 6px;text-transform:uppercase;">⏱️ ${t.edUptime}</div>
-            ${this._entityField('uptime_entity', t.edUptime, 'sensor')}
+            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:12px 0 6px;text-transform:uppercase;">⏱️ ${this.t.edUptime}</div>
+            ${this._entityField('uptime_entity', this.t.edUptime, 'sensor')}
 
-            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:12px 0 6px;text-transform:uppercase;">🌡️ ${t.edTemperature}</div>
-            ${this._entityField('temperature_entity', t.edTemperature, 'sensor')}
+            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:12px 0 6px;text-transform:uppercase;">🌡️ ${this.t.edTemperature}</div>
+            ${this._entityField('temperature_entity', this.t.edTemperature, 'sensor')}
 
-            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:12px 0 6px;text-transform:uppercase;">🌐 LAN</div>
-            ${this._entityField('lan1_link_entity', t.edLan1 + ' ' + t.edPortLink, 'sensor')}
-            ${this._entityField('lan1_power_entity', t.edLan1 + ' ' + t.edPortPower, 'sensor')}
-            ${this._entityField('lan1_poe_entity', t.edLan1 + ' PoE', 'switch')}
-            ${this._entityField('lan2_link_entity', t.edLan2 + ' ' + t.edPortLink, 'sensor')}
-            ${this._entityField('lan2_power_entity', t.edLan2 + ' ' + t.edPortPower, 'sensor')}
-            ${this._entityField('lan2_poe_entity', t.edLan2 + ' PoE', 'switch')}
+            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:12px 0 6px;text-transform:uppercase;">🔗 UPLINK</div>
+            ${this._entityField('lan1_link_entity', 'UPLINK 1 (LAN1)', 'sensor')}
+            ${this._entityField('lan2_link_entity', 'UPLINK 2 (LAN2) - опционально', 'sensor')}
 
-            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:12px 0 6px;text-transform:uppercase;">🔌 ${t.edPortPrefix}</div>
-            ${this._renderPortFields(1, portCount, t.edPortPrefix)}
+            <div style="font-size:10px;font-weight:700;color:var(--secondary-text-color);letter-spacing:.5px;margin:12px 0 6px;text-transform:uppercase;">🔌 ${this.t.edPortPrefix}</div>
+            ${this._renderPortFields(1, portCount, this.t.edPortPrefix)}
           </div>
         </div>
 
         <div class="acc-wrap">
           <div class="acc-head" id="head-bg">
-            <ha-icon icon="mdi:palette"></ha-icon> ${t.edBg}
+            <ha-icon icon="mdi:palette"></ha-icon> ${this.t.edBg}
             <span class="acc-arrow" id="arrow-bg">${this._open.bg ? '▾' : '▸'}</span>
           </div>
           <div class="acc-body" id="body-bg" style="display:${this._open.bg ? 'block' : 'none'}">
-            <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;">${t.edBgPresets}</div>
+            <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;">${this.t.edBgPresets}</div>
             <div class="bg-grid">
               ${SWITCH_BG_PRESETS.map(p => {
                 const c1 = p.c1 || '#888', c2 = p.c2 || '#444';
@@ -1042,17 +1423,17 @@ class SwitchCardEditor extends HTMLElement {
             </div>
             ${bgP === 'custom' ? `
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
-                ${this._colorRow('bg_color1', t.edColorAccent)}
-                ${this._colorRow('bg_color2', t.edColorAccent)}
+                ${this._colorRow('bg_color1', this.t.edColorAccent)}
+                ${this._colorRow('bg_color2', this.t.edColorAccent)}
               </div>
             ` : ''}
             <div class="sl-row">
-              <label>${t.edBgAlpha}</label>
+              <label>${this.t.edBgAlpha}</label>
               <input type="range" id="inp-bg-alpha" min="0" max="100" step="1" value="${cfg.bg_alpha !== undefined ? cfg.bg_alpha : 85}"/>
               <span class="slv" id="bg-alpha-lbl">${cfg.bg_alpha !== undefined ? cfg.bg_alpha : 85}%</span>
             </div>
             <div class="sl-row" style="margin-top:4px;">
-              <label>${t.edBgBlur}</label>
+              <label>${this.t.edBgBlur}</label>
               <input type="range" id="inp-bg-blur" min="0" max="30" step="1" value="${cfg.bg_blur !== undefined ? cfg.bg_blur : 12}"/>
               <span class="slv" id="bg-blur-lbl">${cfg.bg_blur !== undefined ? cfg.bg_blur : 12}px</span>
             </div>
@@ -1061,33 +1442,38 @@ class SwitchCardEditor extends HTMLElement {
 
         <div class="acc-wrap">
           <div class="acc-head" id="head-colors">
-            <ha-icon icon="mdi:palette-swatch"></ha-icon> ${t.edColors}
+            <ha-icon icon="mdi:palette-swatch"></ha-icon> ${this.t.edColors}
             <span class="acc-arrow" id="arrow-colors">${this._open.colors ? '▾' : '▸'}</span>
           </div>
           <div class="acc-body" id="body-colors" style="display:${this._open.colors ? 'block' : 'none'}">
-            ${this._colorRow('color_online', t.edColorOnline)}
-            ${this._colorRow('color_offline', t.edColorOffline)}
-            ${this._colorRow('color_partial', t.edColorPartial)}
-            ${this._colorRow('color_port_active', t.edColorPortActive)}
-            ${this._colorRow('color_accent', t.edColorAccent)}
-            ${this._colorRow('color_text', t.edColorText)}
-            <button class="reset-btn" id="btn-reset-colors">${t.edColorsReset}</button>
+            ${this._colorRow('color_online', this.t.edColorOnline)}
+            ${this._colorRow('color_offline', this.t.edColorOffline)}
+            ${this._colorRow('color_partial', this.t.edColorPartial)}
+            ${this._colorRow('color_port_active', this.t.edColorPortActive)}
+            ${this._colorRow('color_accent', this.t.edColorAccent)}
+            ${this._colorRow('color_text', this.t.edColorText)}
+            ${this._colorRow('led_on', 'LED On')}
+            ${this._colorRow('led_link', 'LED Link')}
+            <button class="reset-btn" id="btn-reset-colors">${this.t.edColorsReset}</button>
           </div>
         </div>
 
         <div class="acc-wrap">
           <div class="acc-head" id="head-display">
-            <ha-icon icon="mdi:eye"></ha-icon> ${t.edDisplay}
+            <ha-icon icon="mdi:eye"></ha-icon> ${this.t.edDisplay}
             <span class="acc-arrow" id="arrow-display">${this._open.display ? '▾' : '▸'}</span>
           </div>
           <div class="acc-body" id="body-display" style="display:${this._open.display ? 'block' : 'none'}">
-            ${this._toggleSwitch('show_greet', t.edShowGreet, t.edShowGreetDesc)}
-            ${this._toggleSwitch('show_status', t.edShowStatus, '')}
-            ${this._toggleSwitch('show_uptime', t.edShowUptime, '')}
-            ${this._toggleSwitch('show_temperature', t.edShowTemperature, '')}
-            ${this._toggleSwitch('show_port_labels', t.edShowPortLabels, '')}
-            ${this._toggleSwitch('show_port_power', t.edShowPortPower, '')}
-            ${this._toggleSwitch('use_port_icons', t.edUseIcons, '')}
+            ${this._toggleSwitch('show_greet', this.t.edShowGreet, this.t.edShowGreetDesc)}
+            ${this._toggleSwitch('show_status', this.t.edShowStatus, '')}
+            ${this._toggleSwitch('show_uptime', this.t.edShowUptime, '')}
+            ${this._toggleSwitch('show_temperature', this.t.edShowTemperature, '')}
+            ${this._toggleSwitch('show_port_labels', this.t.edShowPortLabels, '')}
+            ${this._toggleSwitch('show_port_power', this.t.edShowPortPower, '')}
+            ${this._toggleSwitch('use_port_icons', this.t.edUseIcons, '')}
+            ${this._toggleSwitch('show_leds', 'Показывать LED', 'Светодиоды на портах')}
+            ${this._toggleSwitch('show_switch_body', 'Корпус коммутатора', '')}
+            ${this._toggleSwitch('show_uplink_badge', 'Показывать Uplink', 'Выделение uplink портов')}
           </div>
         </div>
       </div>
@@ -1122,9 +1508,34 @@ class SwitchCardEditor extends HTMLElement {
     sr.querySelectorAll('[data-model]').forEach(btn =>
       btn.addEventListener('click', () => {
         this._config.model = btn.dataset.model;
+        const modelCfg = getModelConfig(btn.dataset.model);
+        this._config.port_count = modelCfg.ports;
+        this._config.uplink_ports = modelCfg.uplink || [];
         this._fire();
         this._render();
       }));
+
+    const portCountSlider = sr.getElementById('inp-port-count');
+    if (portCountSlider) {
+      const lbl = sr.getElementById('port-count-lbl');
+      portCountSlider.addEventListener('input', () => {
+        const val = parseInt(portCountSlider.value);
+        if (lbl) lbl.textContent = val;
+        this._config.port_count = val;
+        this._config.model = 'custom';
+        this._fire();
+        this._render();
+      });
+    }
+
+    const uplinkInput = sr.getElementById('inp-uplink');
+    if (uplinkInput) {
+      uplinkInput.addEventListener('change', () => {
+        const val = uplinkInput.value.trim();
+        this._config.uplink_ports = val ? val.split(',').map(Number).filter(n => !isNaN(n) && n > 0) : [];
+        this._fire();
+      });
+    }
 
     const wireText = (id, key) => {
       const el = sr.getElementById(id);
@@ -1211,7 +1622,7 @@ class SwitchCardEditor extends HTMLElement {
 
     const resetBtn = sr.getElementById('btn-reset-colors');
     if (resetBtn) resetBtn.addEventListener('click', () => {
-      ['color_online', 'color_offline', 'color_partial', 'color_port_active', 'color_accent', 'color_text'].forEach(k => delete this._config[k]);
+      ['color_online', 'color_offline', 'color_partial', 'color_port_active', 'color_accent', 'color_text', 'led_on', 'led_link'].forEach(k => delete this._config[k]);
       this._fire();
       this._render();
     });
@@ -1243,13 +1654,13 @@ customElements.define('switch-card-editor', SwitchCardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'switch-card',
-  name: 'Switch Card (GPS208/GPS204)',
-  description: 'Professional card for GPS208/GPS204 switches with port monitoring, PoE control, clickable power statistics, visual editor, multi-language and HA theme support',
+  name: 'Switch Card (GPS/GS Series)',
+  description: 'Professional switch card with physical design, up to 24 ports, PoE control, LED indicators',
   preview: true,
 });
 
 console.info(
-  '%c 🔌 Switch Card %c v1.0.0 %c ready! (No footer)',
+  '%c 🔌 Switch Card %c v2.0.0 %c ready! (GPS105: 1 Uplink + 4 PoE)',
   'background:#0a1628;color:#00d4ff;font-weight:700;padding:2px 6px;border-radius:4px 0 0 4px;font-size:12px',
   'background:#00d4ff;color:#0a1628;font-weight:700;padding:2px 6px;border-radius:0 4px 4px 0;font-size:12px',
   'color:#4ade80;font-weight:400;font-size:11px;margin-left:4px'
